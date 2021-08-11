@@ -1,0 +1,67 @@
+@url = http://192.168.120.146:6789
+@from = lat1224ealrarc9ue8khc4n4rmc7fkrdqvhl2r3xpk
+@to = lat1cy2uat0eukfrxv897s5s8lnljfka5ewjtnrfhx
+
+### test
+POST http://192.168.9.190:40000/browser-server/transaction/transactionListByAddress  HTTP/1.1
+content-type: application/json
+
+{
+  "pageNo": 1,
+  "pageSize": 200,
+  "address": "{{from}}"
+}
+
+###
+// platon_gasPrice, platon_blockNumber
+POST {{url}}  HTTP/1.1
+content-type: application/json
+
+{
+  "jsonrpc":"2.0",
+  "method":"platon_gasPrice",
+  "params":[],
+  "id":1
+}
+
+###
+// platon_getBalance, platon_getTransactionCount
+POST {{url}}  HTTP/1.1
+content-type: application/json
+
+{
+  "jsonrpc":"2.0",
+  "method":"platon_getTransactionCount",
+  "params":["{{from}}", "latest"],
+  "id":1
+}
+
+###
+// platon_estimateGas, platon_sendTransaction
+POST {{url}}  HTTP/1.1
+content-type: application/json
+
+{
+  "jsonrpc":"2.0",
+  "method":"platon_sendTransaction",
+  "params":[{
+    "from": "{{from}}",
+    "to": "{{to}}",
+    "gas": "0x76c0",
+    "gasPrice": "0x9184e72a000",
+    "value": "0x0"
+  }],
+  "id":1
+}
+
+###
+// platon_sendRawTransaction
+POST {{url}}  HTTP/1.1
+content-type: application/json
+
+{
+  "jsonrpc":"2.0",
+  "method":"platon_sendRawTransaction",
+  "params": ["0xf86b80843b9aca0082520894f5d49ad9fb11e3d42fc58fba7b961a018581c7a287071afd498d00008081eba030045a07bb9f6a4dfca1ebbab6fedac364edcd2b65b118df31179f40805bc9bea0359bd4e44965748a410eb9cf39b0b00102079f0ac15675fa57cc126e5e34dbd3"],
+  "id":1
+}

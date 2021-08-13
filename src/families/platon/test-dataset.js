@@ -99,7 +99,6 @@ const dataset: DatasetTest<Transaction> = {
                 amount: BigNumber("800000000000000"),
                 userGasLimit: BigNumber("21000"),
                 gasPrice: BigNumber("100"),
-                feesStrategy: null,
                 subAccountId: expectedTokenAccount(
                   (account.subAccounts || []).find(
                     (a) =>

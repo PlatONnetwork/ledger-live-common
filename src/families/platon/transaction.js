@@ -26,7 +26,6 @@ import { apiForCurrency } from "../../api/Platon";
 import { makeLRUCache } from "../../cache";
 import { getEnv } from "../../env";
 import { modes } from "./modules";
-import { fromRangeRaw, toRangeRaw } from "../../range";
 
 export function isRecipientValid(currency: CryptoCurrency, recipient: string) {
   if (!recipient.match(/^0x[0-9a-fA-F]{40}$/)) return false;
@@ -66,10 +65,10 @@ export function validateRecipient(
   recipient: string,
   { errors, warnings }: TransactionStatus
 ) {
-  let recipientWarning = getRecipientWarning(currency, recipient);
-  if (recipientWarning) {
-    warnings.recipient = recipientWarning;
-  }
+  // let recipientWarning = getRecipientWarning(currency, recipient);
+  // if (recipientWarning) {
+  //   warnings.recipient = recipientWarning;
+  // }
   if (!recipient) {
     errors.recipient = new RecipientRequired("");
   } else if (!isRecipientValid(currency, recipient)) {
@@ -127,10 +126,9 @@ export const fromTransactionRaw = (tr: TransactionRaw): Transaction => {
     feeCustomUnit: tr.feeCustomUnit, // FIXME this is not good.. we're dereferencing here. we should instead store an index (to lookup in currency.units on UI)
     networkInfo: networkInfo && {
       family: networkInfo.family,
-      gasPrice: fromRangeRaw(networkInfo.gasPrice),
+      gasPrice: BigNumber(networkInfo.gasPrice),
     },
     allowZeroAmount: tr.allowZeroAmount,
-    feesStrategy: tr.feesStrategy,
   };
 };
 
@@ -151,10 +149,9 @@ export const toTransactionRaw = (t: Transaction): TransactionRaw => {
     feeCustomUnit: t.feeCustomUnit, // FIXME drop?
     networkInfo: networkInfo && {
       family: networkInfo.family,
-      gasPrice: toRangeRaw(networkInfo.gasPrice),
+      gasPrice: networkInfo.gasPrice.toString(),
     },
     allowZeroAmount: t.allowZeroAmount,
-    feesStrategy: t.feesStrategy,
   };
 };
 
@@ -202,8 +199,7 @@ export function buildEthereumTx(
   nonce: number
 ) {
   const { currency } = account;
-  // const { gasPrice } = transaction;
-  const gasPrice = BigNumber('1000000000');
+  const { gasPrice } = transaction;
   const subAccount = inferTokenAccount(account, transaction);
 
   invariant(
@@ -229,13 +225,11 @@ export function buildEthereumTx(
     ethTxObject
   );
 
-  log("ethereum", "buildEthereumTx", ethTxObject);
+  log("platon", "buildEthereumTx", ethTxObject);
 
   const tx = new EthereumTx(ethTxObject, { common });
-  // const tx = new EthereumTx(ethTxObject);
   // these will be filled by device signature
   tx.raw[6] = Buffer.from([common.chainId()]); // v
-  // tx.raw[6] = Buffer.from([0x3113A]); // v
   tx.raw[7] = Buffer.from([]); // r
   tx.raw[8] = Buffer.from([]); // s
 
@@ -273,24 +267,21 @@ export function inferEthereumGasLimitRequest(
 
 export const estimateGasLimit: (
   account: Account,
-  addr: string,
   request: EthereumGasLimitRequest
 ) => Promise<BigNumber> = makeLRUCache(
-  (account: Account, addr: string, request: EthereumGasLimitRequest) => {
+  (account: Account, request: EthereumGasLimitRequest) => {
     const api = apiForCurrency(account.currency);
     return api
-      .getDryRunGasLimit(addr, request)
+      .getDryRunGasLimit(request)
       .then((value) =>
         value.eq(21000) // regular ETH send should not be amplified
           ? value
           : value.times(getEnv("ETHEREUM_GAS_LIMIT_AMPLIFIER")).integerValue()
       )
-      .catch(() => api.roughlyEstimateGasLimit(addr));
+      .catch(() => api.roughlyEstimateGasLimit());
   },
-  (a, addr, r) =>
+  (a, r) =>
     a.id +
-    "|" +
-    addr +
     "|" +
     String(r.from) +
     "+" +

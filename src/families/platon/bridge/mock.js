@@ -28,14 +28,14 @@ const defaultGetFees = (a, t: *) =>
   (t.gasPrice || BigNumber(0)).times(getGasLimit(t));
 
 const createTransaction = (): Transaction => ({
-  family: "ethereum",
+  family: "platon",
   mode: "send",
   amount: BigNumber(0),
   recipient: "",
   gasPrice: BigNumber(10000000000),
   userGasLimit: BigNumber(21000),
   estimatedGasLimit: null,
-  feeCustomUnit: getCryptoCurrencyById("ethereum").units[1],
+  feeCustomUnit: getCryptoCurrencyById("platon").units[1],
   networkInfo: null,
   useAllAmount: false,
   subAccountId: null,
@@ -126,7 +126,7 @@ const prepareTransaction = async (a, t) => {
     res = {
       ...res,
       networkInfo: {
-        family: "ethereum",
+        family: "platon",
         gasPrice: inferDynamicRange(BigNumber(300000)),
       },
     };

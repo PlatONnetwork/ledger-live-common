@@ -1,27 +1,38 @@
 // @flow
+import invariant from "invariant";
 import { BigNumber } from "bignumber.js";
 import {
-  NotEnoughBalance,
-  RecipientRequired,
-  InvalidAddress,
-  FeeTooHigh,
+  NotEnoughGas,
+  FeeNotLoaded,
+  FeeRequired,
+  GasLessThanEstimate,
 } from "@ledgerhq/errors";
-import type { Transaction } from "../types";
-import type { AccountBridge, CurrencyBridge } from "../../../types";
-  // scanAccounts,
-  // sync,
-  // signOperation,
-  // broadcast,
+import type { CurrencyBridge, AccountBridge } from "../../../types";
 import {
-  isInvalidRecipient,
-} from "../../../bridge/mockHelpers";
-import { scanAccounts, sync } from "../js-synchronization";
-import { signOperation } from "../js-signOperation";
+  makeSync,
+  makeScanAccounts,
+  makeAccountBridgeReceive,
+} from "../../../bridge/jsHelpers";
 import { getMainAccount } from "../../../account";
-import { makeAccountBridgeReceive } from "../../../bridge/jsHelpers";
-import { apiForCurrency } from "../../../api/Platon";
 import { patchOperationWithHash } from "../../../operation";
+import { getCryptoCurrencyById } from "../../../currencies";
+import { apiForCurrency } from "../../../api/Platon";
+import { getEstimatedFees } from "../../../api/Fees";
+import type { Transaction, NetworkInfo } from "../types";
+import {
+  getGasLimit,
+  inferEthereumGasLimitRequest,
+  estimateGasLimit,
+} from "../transaction";
+import { getAccountShape } from "../synchronisation";
+import { preload, hydrate } from "../modules";
+import { signOperation } from "../signOperation";
+import { modes } from "../modules";
+import postSyncPatch from "../postSyncPatch";
+import { toBech32Address, decodeBech32Address } from "../utils.min.js"
+import { re } from "semver/internal/re";
 
+const receive = makeAccountBridgeReceive();
 
 const broadcast = async ({
   account,
@@ -32,85 +43,148 @@ const broadcast = async ({
   return patchOperationWithHash(operation, hash);
 };
 
-const receive = makeAccountBridgeReceive();
+const scanAccounts = makeScanAccounts(getAccountShape);
 
-const createTransaction = (): Object => ({
+const sync = makeSync(getAccountShape, postSyncPatch);
+
+const createTransaction = () => ({
   family: "platon",
   mode: "send",
   amount: BigNumber(0),
   recipient: "",
-  userGasLimit: BigNumber(21000),
-  gasPrice: BigNumber(10000000000),
+  gasPrice: null,
+  userGasLimit: null,
+  estimatedGasLimit: null,
+  networkInfo: null,
+  feeCustomUnit: getCryptoCurrencyById("platon").units[1],
   useAllAmount: false,
-  fees: null,
 });
 
-const updateTransaction = (t, patch) => ({ ...t, ...patch });
-
-const prepareTransaction = async (a, t) => t;
-
-const estimateMaxSpendable = ({ account, parentAccount, transaction }) => {
-  const mainAccount = getMainAccount(account, parentAccount);
-  const estimatedFees = transaction?.fees || BigNumber(5000);
-  return Promise.resolve(
-    BigNumber.max(0, mainAccount.balance.minus(estimatedFees))
-  );
+const updateTransaction = (t, patch) => {
+  console.log('_-_-_-_=> updateTransaction');
+  if ("recipient" in patch && patch.recipient !== t.recipient) {
+    return { ...t, ...patch, userGasLimit: null, estimatedGasLimit: null };
+  }
+  return { ...t, ...patch };
 };
 
-const getTransactionStatus = (account, t) => {
+const getTransactionStatus = (a, t) => {
+  console.log('_-_-_-_=> getTransactionStatus');
+  const gasLimit = getGasLimit(t);
+  const estimatedFees = (t.gasPrice || BigNumber(0)).times(gasLimit);
+
   const errors = {};
   const warnings = {};
-  const useAllAmount = !!t.useAllAmount;
-
-  const estimatedFees = BigNumber(5000);
-
-  const totalSpent = useAllAmount
-    ? account.balance
-    : BigNumber(t.amount).plus(estimatedFees);
-
-  const amount = useAllAmount
-    ? account.balance.minus(estimatedFees)
-    : BigNumber(t.amount);
-
-  if (amount.gt(0) && estimatedFees.times(10).gt(amount)) {
-    warnings.amount = new FeeTooHigh();
-  }
-
-  if (totalSpent.gt(account.balance)) {
-    errors.amount = new NotEnoughBalance();
-  }
-
-  if (!t.recipient) {
-    errors.recipient = new RecipientRequired();
-  } else if (isInvalidRecipient(t.recipient)) {
-    errors.recipient = new InvalidAddress();
-  }
-
-  return Promise.resolve({
+  const result = {
     errors,
     warnings,
     estimatedFees,
-    amount,
-    totalSpent,
+    amount: BigNumber(0),
+    totalSpent: BigNumber(0),
+  };
+
+  const m = modes[t.mode];
+  invariant(m, "missing module for mode=" + t.mode);
+  m.fillTransactionStatus(a, t, result);
+
+  // generic gas error and warnings
+  if (!t.gasPrice) {
+    errors.gasPrice = new FeeNotLoaded();
+  } else if (gasLimit.eq(0)) {
+    errors.gasLimit = new FeeRequired();
+  } else if (!errors.recipient) {
+    if (estimatedFees.gt(a.balance)) {
+      errors.gasPrice = new NotEnoughGas();
+    }
+  }
+
+  if (t.estimatedGasLimit && gasLimit.lt(t.estimatedGasLimit)) {
+    warnings.gasLimit = new GasLessThanEstimate();
+  }
+
+  return Promise.resolve(result);
+};
+
+const getNetworkInfoByGasTrackerBarometer = async (c) => {
+  console.log('_-_-_-_=> getNetworkInfoByGasTrackerBarometer');
+  const api = apiForCurrency(c);
+  const gasPrice = await api.getGasTrackerBarometer();
+  return { family: "platon", gasPrice };
+};
+
+const getNetworkInfo = (c) =>
+  getNetworkInfoByGasTrackerBarometer(c).catch((e) => {
+    throw e;
   });
+
+const prepareTransaction = async (a, t: Transaction): Promise<Transaction> => {
+  console.log('_-_-_-_=> prepareTransaction');
+  const networkInfo = t.networkInfo || (await getNetworkInfo(a.currency));
+  const gasPrice = networkInfo.gasPrice;
+  if (t.gasPrice !== gasPrice || t.networkInfo !== networkInfo) {
+    t = { ...t, networkInfo, gasPrice };
+  }
+
+  let estimatedGasLimit;
+  const request = inferEthereumGasLimitRequest(a, t);
+  if (request.to) {
+    if((/^0x/i).test(request.to)) {
+      request.to = toBech32Address('lat', request.to)
+    }
+    estimatedGasLimit = await estimateGasLimit(a, request);
+  }
+
+  if (
+    !t.estimatedGasLimit ||
+    (estimatedGasLimit && !estimatedGasLimit.eq(t.estimatedGasLimit))
+  ) {
+    t.estimatedGasLimit = estimatedGasLimit;
+  }
+
+  return t;
+};
+
+const estimateMaxSpendable = async ({
+  account,
+  parentAccount,
+  transaction,
+}) => {
+  console.log('_-_-_-_=> estimateMaxSpendable');
+  const mainAccount = getMainAccount(account, parentAccount);
+  const t = await prepareTransaction(mainAccount, {
+    ...createTransaction(),
+    subAccountId: account.type === "Account" ? null : account.id,
+    ...transaction,
+    recipient:
+      transaction?.recipient || "0x0000000000000000000000000000000000000000",
+
+    useAllAmount: true,
+  });
+  const s = await getTransactionStatus(mainAccount, t);
+  return s.amount;
+};
+
+const getPreloadStrategy = (_currency) => ({
+  preloadMaxAge: 30 * 1000,
+});
+
+const currencyBridge: CurrencyBridge = {
+  getPreloadStrategy,
+  preload,
+  hydrate,
+  scanAccounts,
 };
 
 const accountBridge: AccountBridge<Transaction> = {
-  estimateMaxSpendable,
   createTransaction,
   updateTransaction,
-  getTransactionStatus,
   prepareTransaction,
+  estimateMaxSpendable,
+  getTransactionStatus,
   sync,
   receive,
   signOperation,
   broadcast,
-};
-
-const currencyBridge: CurrencyBridge = {
-  scanAccounts,
-  preload: async () => {},
-  hydrate: () => {},
 };
 
 export default { currencyBridge, accountBridge };

@@ -43,7 +43,7 @@ export const signOperation = ({
 
             if (!gasPrice || !BigNumber(gasLimit).gt(0)) {
               log(
-                "ethereum-error",
+                "platon-error",
                 "buildTransaction missingData: gasPrice=" +
                   String(gasPrice) +
                   " gasLimit=" +

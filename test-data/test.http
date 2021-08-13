@@ -1,6 +1,7 @@
 @url = http://192.168.120.146:6789
 @from = lat1224ealrarc9ue8khc4n4rmc7fkrdqvhl2r3xpk
-@to = lat1cy2uat0eukfrxv897s5s8lnljfka5ewjtnrfhx
+# @to = lat1cy2uat0eukfrxv897s5s8lnljfka5ewjtnrfhx
+@to = 0xc115ceadf9e5923330e5f42903fe7f926dda65d2
 
 ### test
 POST http://192.168.9.190:40000/browser-server/transaction/transactionListByAddress  HTTP/1.1
@@ -37,7 +38,7 @@ content-type: application/json
 }
 
 ###
-// platon_estimateGas, platon_sendTransaction
+// platon_sendTransaction
 POST {{url}}  HTTP/1.1
 content-type: application/json
 
@@ -54,14 +55,32 @@ content-type: application/json
   "id":1
 }
 
+
+###
+// platon_estimateGas
+POST {{url}}  HTTP/1.1
+content-type: application/json
+
+{
+  "jsonrpc":"2.0",
+  "method":"platon_estimateGas",
+  "params":[{
+    "from": "{{from}}",
+    "to": "{{to}}",
+    "data": "0x"
+  }],
+  "id":1
+}
+
 ###
 // platon_sendRawTransaction
+# 0xf86b80843b9aca0082520894f5d49ad9fb11e3d42fc58fba7b961a018581c7a287071afd498d00008081eba030045a07bb9f6a4dfca1ebbab6fedac364edcd2b65b118df31179f40805bc9bea0359bd4e44965748a410eb9cf39b0b00102079f0ac15675fa57cc126e5e34dbd3
 POST {{url}}  HTTP/1.1
 content-type: application/json
 
 {
   "jsonrpc":"2.0",
   "method":"platon_sendRawTransaction",
-  "params": ["0xf86b80843b9aca0082520894f5d49ad9fb11e3d42fc58fba7b961a018581c7a287071afd498d00008081eba030045a07bb9f6a4dfca1ebbab6fedac364edcd2b65b118df31179f40805bc9bea0359bd4e44965748a410eb9cf39b0b00102079f0ac15675fa57cc126e5e34dbd3"],
+  "params": ["0xf86b05843b9aca0082083494c115ceadf9e5923330e5f42903fe7f926dda65d287071afd498d00008081eca044db51865e939dce45f239d81ec7889fb195e1e002f9dc49967b0f0fc99cb01aa014853f709030767abf6c57b66c9da17aebe230408e63eb4fe8797fc7d8e196b1"],
   "id":1
 }

@@ -36,9 +36,9 @@ import { getEnv } from "../../../env";
 let compoundPreloadedValue: ?(CurrentRate[]);
 
 const compoundWhitelist = [
-  "ethereum/erc20/compound_dai",
-  "ethereum/erc20/compound_usd_coin",
-  "ethereum/erc20/compound_usdt",
+  "platon/erc20/compound_dai",
+  "platon/erc20/compound_usd_coin",
+  "platon/erc20/compound_usdt",
 ];
 
 export function listSupportedCompoundTokens(): TokenCurrency[] {
@@ -341,7 +341,7 @@ export function findCurrentRate(tokenOrCtoken: TokenCurrency): ?CurrentRate {
 export async function preload(
   currency: CryptoCurrency
 ): Promise<?CompoundPreloaded> {
-  if (currency.id !== "ethereum") {
+  if (currency.id !== "platon") {
     return Promise.resolve();
   }
   const ctokens = listSupportedCompoundTokens();
@@ -353,7 +353,7 @@ export async function preload(
 }
 
 export function hydrate(value: ?CompoundPreloaded, currency: CryptoCurrency) {
-  if (currency.id !== "ethereum") return;
+  if (currency.id !== "platon") return;
   compoundPreloadedValue = value ? value.map(fromCurrentRateRaw) : null;
 }
 
@@ -361,7 +361,7 @@ export function prepareTokenAccounts(
   currency: CryptoCurrency,
   subAccounts: TokenAccount[]
 ): TokenAccount[] {
-  if (currency.id !== "ethereum") return subAccounts;
+  if (currency.id !== "platon") return subAccounts;
   if (!compoundPreloadedValue) return subAccounts; // noop if compoundPreloadedValue failed to load
 
   const compoundByTokenId = inferSubAccountsCompound(currency, subAccounts);
@@ -406,7 +406,7 @@ export async function digestTokenAccounts(
   subAccounts: TokenAccount[],
   address: string
 ): Promise<TokenAccount[]> {
-  if (currency.id !== "ethereum") return subAccounts;
+  if (currency.id !== "platon") return subAccounts;
   if (!compoundPreloadedValue) return subAccounts; // noop if compoundPreloadedValue failed to load
 
   const compoundByTokenId = inferSubAccountsCompound(currency, subAccounts);

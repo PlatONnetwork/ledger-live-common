@@ -19,7 +19,6 @@ import type {
   Spec,
 } from "../../libcore/types";
 import type { TransactionMode, ModeModule } from "./modules";
-import type { Range, RangeRaw } from "../../range";
 import type { CryptoCurrency } from "../../types";
 import type { DerivationMode } from "../../derivation";
 
@@ -35,42 +34,29 @@ export type EthereumGasLimitRequest = {
 
 export type NetworkInfo = {|
   family: "platon",
-  gasPrice: Range,
+  gasPrice: BigNumber,
 |};
 
 export type NetworkInfoRaw = {|
   family: "platon",
-  gasPrice: RangeRaw,
+  gasPrice: string,
 |};
 
 export type { TransactionMode, ModeModule };
 
 export type Transaction = {|
+  ...TransactionCommon,
   family: "platon",
-  mode: string,
-  fees: BigNumber | null,
-  amount: BigNumber,
-  recipient: string,
-  gasPrice: ?BigNumber,
-  useAllAmount?: boolean,
+  mode: TransactionMode,
   nonce?: number,
   data?: Buffer,
+  gasPrice: ?BigNumber,
+  userGasLimit: ?BigNumber,
+  estimatedGasLimit: ?BigNumber,
+  feeCustomUnit: ?Unit,
+  networkInfo: ?NetworkInfo,
   allowZeroAmount?: boolean,
 |};
-
-// export type Transaction = {|
-//   ...TransactionCommon,
-//   family: "platon",
-//   mode: TransactionMode,
-//   nonce?: number,
-//   data?: Buffer,
-//   gasPrice: ?BigNumber,
-//   userGasLimit: ?BigNumber,
-//   estimatedGasLimit: ?BigNumber,
-//   feeCustomUnit: ?Unit,
-//   networkInfo: ?NetworkInfo,
-//   allowZeroAmount?: boolean,
-// |};
 
 export type TransactionRaw = {|
   ...TransactionCommonRaw,

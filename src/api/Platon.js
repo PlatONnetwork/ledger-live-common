@@ -70,25 +70,20 @@ export type API = {
     truncated: boolean,
     txs: Tx[],
   }>,
-  getCurrentBlock: () => Promise<Block>,
+  getCurrentBlock: () => Promise<number>,
   getAccountNonce: (address: string) => Promise<number>,
   broadcastTransaction: (signedTransaction: string) => Promise<string>,
   getERC20Balances: (input: ERC20BalancesInput) => Promise<ERC20BalanceOutput>,
   getAccountBalance: (address: string) => Promise<BigNumber>,
-  roughlyEstimateGasLimit: (address: string) => Promise<BigNumber>,
+  roughlyEstimateGasLimit: () => Promise<BigNumber>,
   getERC20ApprovalsPerContract: (
     owner: string,
     contract: string
   ) => Promise<Array<{ sender: string, value: string }>>,
   getDryRunGasLimit: (
-    address: string,
     request: EthereumGasLimitRequest
   ) => Promise<BigNumber>,
-  getGasTrackerBarometer: () => Promise<{
-    low: BigNumber,
-    medium: BigNumber,
-    high: BigNumber,
-  }>,
+  getGasTrackerBarometer: () => Promise<BigNumber>,
 };
 
 export const apiForCurrency = (currency: CryptoCurrency): API => {
@@ -101,7 +96,6 @@ export const apiForCurrency = (currency: CryptoCurrency): API => {
         url: 'http://192.168.9.190:40000/browser-server/transaction/transactionListByAddress',
         data: {pageNo: 1, pageSize: 200, address},
       });
-      console.log('=====> ', data)
       data = {
         truncated: data.data.length > 200,
         txs: data.data || [],
@@ -204,42 +198,43 @@ export const apiForCurrency = (currency: CryptoCurrency): API => {
       }
     },
 
-    async roughlyEstimateGasLimit(address) {
-      // const { data } = await network({
-      //   method: "POST",
-      //   url: baseURL,
-      //   data: {
-      //     "jsonrpc":"2.0",
-      //     "method":"platon_estimateGas",
-      //     "params":[],
-      //     "id":1
-      //   },
-      //   transformResponse: JSONBigNumber.parse,
-      // });
-      // return BigNumber(data.estimated_gas_limit);
-      return BigNumber(2100);
-    },
-
-    async getDryRunGasLimit(address, request) {
-      const post: Object = {
-        ...request,
-      };
-      // .to not needed by backend as it's part of URL:
-      delete post.to;
-      // backend use gas_price casing:
-      post.gas_price = request.gasPrice;
-      delete post.gasPrice;
-
+    async roughlyEstimateGasLimit() {
+      console.log('_-_-_-_=> roughlyEstimateGasLimit');
       const { data } = await network({
         method: "POST",
-        url: `${baseURL}/addresses/${address}/estimate-gas-limit`,
-        data: post,
+        url: baseURL,
+        data: {
+          "jsonrpc":"2.0",
+          "method":"platon_estimateGas",
+          "params":[{}],
+          "id":1
+        },
         transformResponse: JSONBigNumber.parse,
       });
-      if (data.error_message) {
-        throw new FeeEstimationFailed(data.error_message);
+      return BigNumber(data.result);
+    },
+
+    async getDryRunGasLimit(tx) {
+      console.log('_-_-_-_=> getDryRunGasLimit');
+      const { data } = await network({
+        method: "POST",
+        url: baseURL,
+        data: {
+          "jsonrpc":"2.0",
+          "method":"platon_estimateGas",
+          "params":[{
+            "from": tx.from,
+            "to": tx.to,
+            "data": tx.data
+          }],
+          "id":1
+        },
+        transformResponse: JSONBigNumber.parse,
+      });
+      if (data.error && data.error.message) {
+        throw new FeeEstimationFailed(data.error.message);
       }
-      const value = BigNumber(data.estimated_gas_limit);
+      const value = BigNumber(data.result);
       invariant(!value.isNaN(), "invalid server data");
       return value;
     },
@@ -256,11 +251,7 @@ export const apiForCurrency = (currency: CryptoCurrency): API => {
             "id":1
           }
         });
-        return {
-          low: BigNumber(data),
-          medium: BigNumber(data),
-          high: BigNumber(data),
-        };
+        return BigNumber(data.result);
       },
       () => "",
       { maxAge: 30 * 1000 }

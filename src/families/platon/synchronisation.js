@@ -27,9 +27,10 @@ export const getAccountShape: GetAccountShape = async (
   infoInput,
   { blacklistedTokenIds }
 ) => {
+  console.log('_-_-_-_=> getAccountShape');
   let { currency, address, initialAccount } = infoInput;
   // address = eip55.encode(address);
-  const info = { ...infoInput, address };
+  const info = { ...infoInput };
 
   const api = apiForCurrency(currency);
   const initialStableOperations = initialAccount
@@ -55,15 +56,16 @@ export const getAccountShape: GetAccountShape = async (
       : undefined;
 
   const txsP = fetchAllTransactions(api, address, pullFromBlockHash);
-  const currentBlockP = fetchCurrentBlock(currency);
+  const currentBlockP = api.getCurrentBlock();
   const balanceP = api.getAccountBalance(address);
 
-  const [txs, currentBlock] = await Promise.all([txsP, currentBlockP]);
+  // const [txs, currentBlock] = await Promise.all([txsP, currentBlockP]);
+  const [txs, blockHeight] = await Promise.all([txsP, currentBlockP]);
 
-  const blockHeight = currentBlock.height.toNumber();
+  // const blockHeight = currentBlock.height.toNumber();
 
   if (!pullFromBlockHash && txs.length === 0) {
-    log("ethereum", "no ops on " + address);
+    log("platon", "no ops on " + address);
     return {
       balance: BigNumber(0),
       subAccounts: [],
@@ -102,7 +104,7 @@ export const getAccountShape: GetAccountShape = async (
   const perTokenAccountChangedIds = Object.keys(perTokenAccountIdOperations);
 
   log(
-    "ethereum",
+    "platon",
     `${address} reconciliate ${txs.length} txs => ${newOps.length} new ops. ${perTokenAccountChangedIds.length} updates into ${subAccountsExistingIds.length} token accounts`
   );
 
@@ -180,12 +182,13 @@ export const getAccountShape: GetAccountShape = async (
 };
 
 const safeEncodeEIP55 = (addr) => {
-  if (!addr || addr === "0x") return "";
-  try {
-    return eip55.encode(addr);
-  } catch (e) {
-    return "";
-  }
+  return addr
+  // if (!addr || addr === "0x") return "";
+  // try {
+  //   return eip55.encode(addr);
+  // } catch (e) {
+  //   return "";
+  // }
 };
 
 // in case of a SELF send, 2 ops are returned.
@@ -207,101 +210,6 @@ const txToOps = ({ address, id }) => (tx: Tx): Operation[] => {
   const date = tx.received_at ? new Date(tx.received_at) : new Date();
   const transactionSequenceNumber = parseInt(tx.nonce);
 
-  // Internal transactions
-  const internalOperations = !actions
-    ? []
-    : actions
-        .map((action, i) => {
-          const actionFrom = safeEncodeEIP55(action.from);
-          const actionTo = safeEncodeEIP55(action.to);
-          // Since explorer is considering also wrapping tx as an internal action,
-          // we must filter it by considering that only internal action with same data,
-          // sender and receiver, is the one representing/corresponding to wrapping tx
-          if (
-            actionFrom === from &&
-            actionTo === to &&
-            tx.value.eq(action.value)
-          ) {
-            return;
-          }
-          const receiving = addr === actionTo;
-          const value = action.value;
-          const fee = BigNumber(0);
-          if (receiving) {
-            return {
-              id: `${id}-${hash}-i${i}`,
-              hash,
-              type: "IN",
-              value,
-              fee,
-              blockHeight,
-              blockHash,
-              accountId: id,
-              senders: [actionFrom],
-              recipients: [actionTo],
-              date,
-              extra: {},
-              transactionSequenceNumber,
-            };
-          }
-        })
-        .filter(Boolean);
-
-  // We are putting the sub operations in place for now, but they will later be exploded out of the operations back to their token accounts
-  const subOperations = !transfer_events
-    ? []
-    : flatMap(transfer_events.list, (event) => {
-        const from = safeEncodeEIP55(event.from);
-        const to = safeEncodeEIP55(event.to);
-        const sending = addr === from;
-        const receiving = addr === to;
-        if (!sending && !receiving) {
-          return [];
-        }
-        const token = findTokenByAddress(event.contract);
-        if (!token) return [];
-        const accountId = encodeTokenAccountId(id, token);
-        const value = event.count;
-        const all = [];
-        if (sending) {
-          const type = "OUT";
-          all.push({
-            id: `${accountId}-${hash}-${type}`,
-            hash,
-            type,
-            value,
-            fee,
-            blockHeight,
-            blockHash,
-            accountId,
-            senders: [from],
-            recipients: [to],
-            date,
-            extra: {},
-            transactionSequenceNumber,
-          });
-        }
-        if (receiving) {
-          const type = "IN";
-          all.push({
-            id: `${accountId}-${hash}-${type}`,
-            hash,
-            type,
-            value,
-            fee,
-            blockHeight,
-            blockHash,
-            accountId,
-            senders: [from],
-            recipients: [to],
-            date,
-            extra: {},
-            transactionSequenceNumber,
-          });
-        }
-        return all;
-      });
-
   const ops = [];
 
   if (sending) {
@@ -320,8 +228,6 @@ const txToOps = ({ address, id }) => (tx: Tx): Operation[] => {
       date,
       extra: {},
       hasFailed,
-      internalOperations,
-      subOperations,
       transactionSequenceNumber,
     });
   }
@@ -346,47 +252,8 @@ const txToOps = ({ address, id }) => (tx: Tx): Operation[] => {
     });
   }
 
-  if (
-    !sending &&
-    !receiving &&
-    (internalOperations.length || subOperations.length)
-  ) {
-    ops.push({
-      id: `${id}-${hash}-NONE`,
-      hash: hash,
-      type: "NONE",
-      value: BigNumber(0),
-      fee,
-      blockHeight,
-      blockHash,
-      accountId: id,
-      senders: [from],
-      recipients: [to],
-      date,
-      extra: {},
-      internalOperations,
-      subOperations,
-      transactionSequenceNumber,
-    });
-  }
-
   return ops;
 };
-
-const fetchCurrentBlock = ((perCurrencyId) => (currency) => {
-  if (perCurrencyId[currency.id]) return perCurrencyId[currency.id]();
-  const api = apiForCurrency(currency);
-  const f = throttle(
-    () =>
-      api.getCurrentBlock().catch((e) => {
-        f.cancel();
-        throw e;
-      }),
-    5000
-  );
-  perCurrencyId[currency.id] = f;
-  return f();
-})({});
 
 // FIXME we need to figure out how to optimize this
 // but nothing can easily be done until we have a better api
@@ -400,7 +267,7 @@ const fetchAllTransactions = async (api, address, blockHash) => {
     txs = txs.concat(r.txs);
     blockHash = txs[txs.length - 1].block?.hash;
     if (!blockHash) {
-      log("ethereum", "block.hash missing!");
+      log("platon", "block.hash missing!");
       return txs;
     }
   } while (--maxIteration);
@@ -486,7 +353,7 @@ function reconciliateSubAccounts(tokenAccounts, initialAccount) {
     });
     if (!anySubAccountHaveChanged && initialSubAccounts) {
       log(
-        "ethereum",
+        "platon",
         "incremental sync: " +
           String(initialSubAccounts.length) +
           " sub accounts have not changed"
@@ -494,7 +361,7 @@ function reconciliateSubAccounts(tokenAccounts, initialAccount) {
       subAccounts = initialSubAccounts;
     } else {
       log(
-        "ethereum",
+        "platon",
         "incremental sync: sub accounts changed: " + stats.join(", ")
       );
     }

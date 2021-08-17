@@ -97,9 +97,11 @@ ${t.mode.toUpperCase()} ${
         })
   }
 TO ${t.recipient}
-with gasPrice=${formatCurrencyUnit(
-    mainAccount.currency.units[1],
-    t.gasPrice || BigNumber(0)
+with gasPrice=${formatCurrencyUnit(getAccountUnit(account),
+    t.gasPrice || BigNumber(0), {
+      showCode: true,
+      disableRounding: true,
+    }
   )}
 with gasLimit=${gasLimit.toString()}`;
 };

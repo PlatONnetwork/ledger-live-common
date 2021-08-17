@@ -14,40 +14,15 @@ import { makeLRUCache } from "../cache";
 export type Block = { height: BigNumber }; // TODO more fields actually
 
 export type Tx = {
-  hash: string,
-  status?: BigNumber, // 0: fail, 1: success
-  received_at?: string,
-  nonce: string,
+  txHash: string,
+  txReceiptStatus?: BigNumber, // 0: fail, 1: success
+  serverTime?: string,
+  blockHash?: string,
   value: BigNumber,
-  gas: BigNumber,
-  gas_price: BigNumber,
+  actualTxCost: BigNumber,
   from: string,
   to: string,
-  cumulative_gas_used?: BigNumber,
-  gas_used?: BigNumber,
-  transfer_events?: {
-    list: Array<{
-      contract: string,
-      from: string,
-      to: string,
-      count: BigNumber,
-      decimal?: number,
-      symbol?: string,
-    }>,
-    truncated: boolean,
-  },
-  actions?: Array<{
-    from: string,
-    to: string,
-    value: BigNumber,
-    gas?: BigNumber,
-    gas_used?: BigNumber,
-  }>,
-  block?: {
-    hash: string,
-    height: BigNumber,
-    time: string,
-  },
+  blockNumber: number,
 };
 
 export type ERC20BalancesInput = Array<{
@@ -64,7 +39,6 @@ export type ERC20BalanceOutput = Array<{
 export type API = {
   getTransactions: (
     address: string,
-    block_hash: ?string,
     batch_size?: number
   ) => Promise<{
     truncated: boolean,
@@ -90,14 +64,15 @@ export const apiForCurrency = (currency: CryptoCurrency): API => {
   const baseURL = 'http://192.168.120.146:6789';
 
   return {
-    async getTransactions(address, block_hash, batch_size = 2000) {
+    async getTransactions(address, batch_size) {
+      console.log('_-_-_-_=> getTransactions');
       let { data } = await network({
         method: "POST",
         url: 'http://192.168.9.190:40000/browser-server/transaction/transactionListByAddress',
-        data: {pageNo: 1, pageSize: 200, address},
+        data: {pageNo: 1, pageSize: batch_size, address},
       });
       data = {
-        truncated: data.data.length > 200,
+        truncated: data.data.length >= batch_size,
         txs: data.data || [],
       };
       return data;

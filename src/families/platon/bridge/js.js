@@ -30,7 +30,6 @@ import { signOperation } from "../signOperation";
 import { modes } from "../modules";
 import postSyncPatch from "../postSyncPatch";
 import { toBech32Address, decodeBech32Address } from "../utils.min.js"
-import { re } from "semver/internal/re";
 
 const receive = makeAccountBridgeReceive();
 
@@ -56,7 +55,7 @@ const createTransaction = () => ({
   userGasLimit: null,
   estimatedGasLimit: null,
   networkInfo: null,
-  feeCustomUnit: getCryptoCurrencyById("platon").units[1],
+  feeCustomUnit: getCryptoCurrencyById("platon").units[0],
   useAllAmount: false,
 });
 

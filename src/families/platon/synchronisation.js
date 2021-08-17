@@ -3,7 +3,6 @@ import { BigNumber } from "bignumber.js";
 import union from "lodash/union";
 import throttle from "lodash/throttle";
 import flatMap from "lodash/flatMap";
-import eip55 from "eip55";
 import { log } from "@ledgerhq/logs";
 import { mergeOps } from "../../bridge/jsHelpers";
 import type { GetAccountShape } from "../../bridge/jsHelpers";
@@ -29,7 +28,6 @@ export const getAccountShape: GetAccountShape = async (
 ) => {
   console.log('_-_-_-_=> getAccountShape');
   let { currency, address, initialAccount } = infoInput;
-  // address = eip55.encode(address);
   const info = { ...infoInput };
 
   const api = apiForCurrency(currency);
@@ -181,34 +179,19 @@ export const getAccountShape: GetAccountShape = async (
   return accountShape;
 };
 
-const safeEncodeEIP55 = (addr) => {
-  return addr
-  // if (!addr || addr === "0x") return "";
-  // try {
-  //   return eip55.encode(addr);
-  // } catch (e) {
-  //   return "";
-  // }
-};
-
 // in case of a SELF send, 2 ops are returned.
 const txToOps = ({ address, id }) => (tx: Tx): Operation[] => {
-  // workaround bugs in our explorer that don't treat partial/optimistic operation really well
-  if (!tx.gas_used) return [];
-
-  const { hash, block, actions, transfer_events } = tx;
+  const { from, to, txHash, blockNumber, actualTxCost } = tx;
   const addr = address;
-  const from = safeEncodeEIP55(tx.from);
-  const to = safeEncodeEIP55(tx.to);
   const sending = addr === from;
   const receiving = addr === to;
+  const hash = txHash;
   const value = BigNumber(tx.value);
-  const fee = BigNumber(tx.gas_price).times(tx.gas_used || 0);
-  const hasFailed = BigNumber(tx.status || 0).eq(0);
-  const blockHeight = block && block.height.toNumber();
-  const blockHash = block && block.hash;
-  const date = tx.received_at ? new Date(tx.received_at) : new Date();
-  const transactionSequenceNumber = parseInt(tx.nonce);
+  const fee = BigNumber(actualTxCost);
+  const hasFailed = BigNumber(tx.txReceiptStatus || 0).eq(0);
+  const blockHeight = blockNumber;
+  const blockHash = tx.blockHash || txHash;
+  const date = tx.serverTime ? new Date(tx.serverTime) : new Date();
 
   const ops = [];
 
@@ -228,7 +211,6 @@ const txToOps = ({ address, id }) => (tx: Tx): Operation[] => {
       date,
       extra: {},
       hasFailed,
-      transactionSequenceNumber,
     });
   }
 
@@ -246,9 +228,6 @@ const txToOps = ({ address, id }) => (tx: Tx): Operation[] => {
       recipients: [to],
       date: new Date(date.getTime() + 1), // hack: make the IN appear after the OUT in history.
       extra: {},
-      internalOperations: sending ? [] : internalOperations, // if it was already in sending, we don't add twice
-      subOperations: sending ? [] : subOperations,
-      transactionSequenceNumber,
     });
   }
 
@@ -257,19 +236,15 @@ const txToOps = ({ address, id }) => (tx: Tx): Operation[] => {
 
 // FIXME we need to figure out how to optimize this
 // but nothing can easily be done until we have a better api
-const fetchAllTransactions = async (api, address, blockHash) => {
+const fetchAllTransactions = async (api, address) => {
   let r;
   let txs = [];
   let maxIteration = 20; // safe limit
+  const batch_size = 50; // safe limit
   do {
-    r = await api.getTransactions(address, blockHash);
-    if (r.txs.length === 0) return txs;
+    r = await api.getTransactions(address, batch_size);
     txs = txs.concat(r.txs);
-    blockHash = txs[txs.length - 1].block?.hash;
-    if (!blockHash) {
-      log("platon", "block.hash missing!");
-      return txs;
-    }
+    if (r.txs.length < batch_size) return txs;
   } while (--maxIteration);
   return txs;
 };

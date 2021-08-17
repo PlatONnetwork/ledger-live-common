@@ -6,10 +6,10 @@ import { getAccountCurrency } from "../../account/helpers";
 import type { Account } from "../../types";
 import { getAccountBridge } from "../../bridge";
 import { makeBridgeCacheSystem } from "../../bridge/cache";
-import { ethereum1 } from "./test-dataset";
+import dataset from "./test-dataset";
 
 describe("blacklistedTokenIds functionality", () => {
-  const account = fromAccountRaw(ethereum1);
+  const account = fromAccountRaw(dataset);
   let localCache = {};
   const cache = makeBridgeCacheSystem({
     saveData(c, d) {
@@ -23,7 +23,7 @@ describe("blacklistedTokenIds functionality", () => {
 
   test("initial raw account contains no token accounts", async () => {
     await cache.prepareCurrency(account.currency);
-    expect(ethereum1.subAccounts?.length).toBeFalsy();
+    expect(dataset.subAccounts?.length).toBeFalsy();
   });
 
   test("sync finds tokens, but not blacklisted ones", async () => {

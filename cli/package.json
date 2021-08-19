@@ -30,10 +30,9 @@
     "@ledgerhq/hw-transport-node-ble": "5.7.0"
   },
   "dependencies": {
-    "@ledgerhq/cryptoassets": "file:.yalc/@ledgerhq/cryptoassets",
+    "@ledgerhq/cryptoassets": "6.2.1",
     "@ledgerhq/errors": "6.2.0",
     "@ledgerhq/hw-app-btc": "6.2.0",
-    "@ledgerhq/hw-app-lat": "file:.yalc/@ledgerhq/hw-app-lat",
     "@ledgerhq/hw-transport-http": "6.2.0",
     "@ledgerhq/hw-transport-mocker": "6.2.0",
     "@ledgerhq/hw-transport-node-hid": "6.2.1",

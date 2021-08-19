@@ -35,7 +35,7 @@ const send: ModeModule = {
           : t.amount;
         result.amount = t.useAllAmount ? account.spendableBalance : t.amount;
       } else {
-        // SEND ETHEREUM
+        // SEND PLATON
         result.totalSpent = t.useAllAmount
           ? account.spendableBalance
           : t.amount.plus(result.estimatedFees);

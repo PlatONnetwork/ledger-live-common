@@ -16,7 +16,7 @@ export type Block = { height: BigNumber }; // TODO more fields actually
 export type Tx = {
   txHash: string,
   txReceiptStatus?: BigNumber, // 0: fail, 1: success
-  serverTime?: string,
+  timestamp?: number,
   blockHash?: string,
   value: BigNumber,
   actualTxCost: BigNumber,

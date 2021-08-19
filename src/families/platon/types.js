@@ -56,6 +56,7 @@ export type Transaction = {|
   feeCustomUnit: ?Unit,
   networkInfo: ?NetworkInfo,
   allowZeroAmount?: boolean,
+  isBech32?: boolean,
 |};
 
 export type TransactionRaw = {|

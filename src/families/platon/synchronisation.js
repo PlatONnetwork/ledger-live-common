@@ -53,7 +53,7 @@ export const getAccountShape: GetAccountShape = async (
       ? mostRecentStableOperation.blockHash
       : undefined;
 
-  const txsP = fetchAllTransactions(api, address, pullFromBlockHash);
+  const txsP = fetchAllTransactions(api, address);
   const currentBlockP = api.getCurrentBlock();
   const balanceP = api.getAccountBalance(address);
 
@@ -180,18 +180,19 @@ export const getAccountShape: GetAccountShape = async (
 };
 
 // in case of a SELF send, 2 ops are returned.
-const txToOps = ({ address, id }) => (tx: Tx): Operation[] => {
+const txToOps = ({ currency, address, id }) => (tx: Tx): Operation[] => {
   const { from, to, txHash, blockNumber, actualTxCost } = tx;
   const addr = address;
   const sending = addr === from;
   const receiving = addr === to;
   const hash = txHash;
-  const value = BigNumber(tx.value);
-  const fee = BigNumber(actualTxCost);
+  const magnitude = BigNumber(10).pow(currency.units[0].magnitude)
+  const value = BigNumber(tx.value).times(magnitude);
+  const fee = BigNumber(actualTxCost).times(magnitude);
   const hasFailed = BigNumber(tx.txReceiptStatus || 0).eq(0);
   const blockHeight = blockNumber;
   const blockHash = tx.blockHash || txHash;
-  const date = tx.serverTime ? new Date(tx.serverTime) : new Date();
+  const date = tx.timestamp ? new Date(tx.timestamp) : new Date();
 
   const ops = [];
 

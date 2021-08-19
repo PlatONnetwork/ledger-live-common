@@ -15,6 +15,7 @@ import { getGasLimit, buildEthereumTx } from "./transaction";
 import { apiForCurrency } from "../../api/Platon";
 import { withDevice } from "../../hw/deviceAccess";
 import { modes } from "./modules";
+import { toBech32Address } from "./utils.min.js";
 
 export const signOperation = ({
   account,
@@ -108,7 +109,10 @@ export const signOperation = ({
             // build optimistic operation
             const txHash = ""; // resolved at broadcast time
             const senders = [freshAddress];
-            const recipients = [to];
+            let recipients = [to];
+            // if (transaction.isBech32) {
+            //   recipients = [toBech32Address(recipients[0])];
+            // }
             const fee = gasPrice.times(gasLimit);
             const transactionSequenceNumber = nonce;
             const accountId = account.id;

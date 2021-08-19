@@ -29,7 +29,12 @@ import { preload, hydrate } from "../modules";
 import { signOperation } from "../signOperation";
 import { modes } from "../modules";
 import postSyncPatch from "../postSyncPatch";
-import { toBech32Address, decodeBech32Address } from "../utils.min.js"
+import {
+  toBech32Address,
+  decodeBech32Address,
+  isBech32Address,
+  isAddress,
+} from "../utils.min.js";
 
 const receive = makeAccountBridgeReceive();
 
@@ -57,10 +62,12 @@ const createTransaction = () => ({
   networkInfo: null,
   feeCustomUnit: getCryptoCurrencyById("platon").units[0],
   useAllAmount: false,
+  isBech32: false,
 });
 
 const updateTransaction = (t, patch) => {
-  console.log('_-_-_-_=> updateTransaction');
+  console.log("_-_-_-_=> updateTransaction", t);
+
   if ("recipient" in patch && patch.recipient !== t.recipient) {
     return { ...t, ...patch, userGasLimit: null, estimatedGasLimit: null };
   }
@@ -68,7 +75,8 @@ const updateTransaction = (t, patch) => {
 };
 
 const getTransactionStatus = (a, t) => {
-  console.log('_-_-_-_=> getTransactionStatus');
+  console.log("_-_-_-_=> getTransactionStatus", t);
+  t.isBech32 && (t.recipient = decodeBech32Address(t.recipient));
   const gasLimit = getGasLimit(t);
   const estimatedFees = (t.gasPrice || BigNumber(0)).times(gasLimit);
 
@@ -105,7 +113,7 @@ const getTransactionStatus = (a, t) => {
 };
 
 const getNetworkInfoByGasTrackerBarometer = async (c) => {
-  console.log('_-_-_-_=> getNetworkInfoByGasTrackerBarometer');
+  console.log("_-_-_-_=> getNetworkInfoByGasTrackerBarometer");
   const api = apiForCurrency(c);
   const gasPrice = await api.getGasTrackerBarometer();
   return { family: "platon", gasPrice };
@@ -117,7 +125,11 @@ const getNetworkInfo = (c) =>
   });
 
 const prepareTransaction = async (a, t: Transaction): Promise<Transaction> => {
-  console.log('_-_-_-_=> prepareTransaction');
+  console.log("_-_-_-_=> prepareTransaction", t);
+  if (isBech32Address(t.recipient)) {
+    t.isBech32 = true;
+    t.recipient = decodeBech32Address(t.recipient)
+  }
   const networkInfo = t.networkInfo || (await getNetworkInfo(a.currency));
   const gasPrice = networkInfo.gasPrice;
   if (t.gasPrice !== gasPrice || t.networkInfo !== networkInfo) {
@@ -127,9 +139,7 @@ const prepareTransaction = async (a, t: Transaction): Promise<Transaction> => {
   let estimatedGasLimit;
   const request = inferEthereumGasLimitRequest(a, t);
   if (request.to) {
-    if((/^0x/i).test(request.to)) {
-      request.to = toBech32Address('lat', request.to)
-    }
+    request.to = toBech32Address(request.to);
     estimatedGasLimit = await estimateGasLimit(a, request);
   }
 
@@ -148,7 +158,7 @@ const estimateMaxSpendable = async ({
   parentAccount,
   transaction,
 }) => {
-  console.log('_-_-_-_=> estimateMaxSpendable');
+  console.log("_-_-_-_=> estimateMaxSpendable");
   const mainAccount = getMainAccount(account, parentAccount);
   const t = await prepareTransaction(mainAccount, {
     ...createTransaction(),

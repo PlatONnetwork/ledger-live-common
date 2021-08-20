@@ -9,7 +9,7 @@ import { makeBridgeCacheSystem } from "../../bridge/cache";
 import dataset from "./test-dataset";
 
 describe("blacklistedTokenIds functionality", () => {
-  const account = fromAccountRaw(dataset);
+  const account = fromAccountRaw(dataset.raw);
   let localCache = {};
   const cache = makeBridgeCacheSystem({
     saveData(c, d) {
@@ -23,7 +23,7 @@ describe("blacklistedTokenIds functionality", () => {
 
   test("initial raw account contains no token accounts", async () => {
     await cache.prepareCurrency(account.currency);
-    expect(dataset.subAccounts?.length).toBeFalsy();
+    expect(dataset.raw.subAccounts?.length).toBeFalsy();
   });
 
   test("sync finds tokens, but not blacklisted ones", async () => {

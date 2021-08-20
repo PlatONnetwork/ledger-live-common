@@ -7,7 +7,7 @@ import eip55 from "eip55";
 import { BigNumber } from "bignumber.js";
 import { log } from "@ledgerhq/logs";
 import { FeeNotLoaded } from "@ledgerhq/errors";
-import Eth from "@ledgerhq/hw-app-eth";
+import Lat from "@ledgerhq/hw-app-lat";
 import { byContractAddress } from "@ledgerhq/hw-app-eth/erc20";
 import type { Transaction } from "./types";
 import type { Operation, Account, SignOperationEvent } from "../../types";
@@ -15,7 +15,7 @@ import { getGasLimit, buildEthereumTx } from "./transaction";
 import { apiForCurrency } from "../../api/Platon";
 import { withDevice } from "../../hw/deviceAccess";
 import { modes } from "./modules";
-import { toBech32Address } from "./utils.min.js";
+import { decodeBech32Address, isBech32Address } from "./utils.min.js";
 
 export const signOperation = ({
   account,
@@ -37,6 +37,7 @@ export const signOperation = ({
           let cancelled;
 
           async function main() {
+            console.log("_-_-_-_=> signOperation", transaction);
             // First, we need to create a partial tx and send to the device
             const { freshAddressPath, freshAddress } = account;
             const { gasPrice } = transaction;
@@ -53,6 +54,11 @@ export const signOperation = ({
               throw new FeeNotLoaded();
             }
 
+            if (isBech32Address(transaction.recipient)) {
+              transaction.recipient = decodeBech32Address(
+                transaction.recipient
+              );
+            }
             const { tx, fillTransactionDataResult } = buildEthereumTx(
               account,
               transaction,
@@ -62,7 +68,7 @@ export const signOperation = ({
             const chainId = tx.getChainId();
             const value = BigNumber("0x" + (tx.value.toString("hex") || "0"));
 
-            const eth = new Eth(transport);
+            const lat = new Lat(transport);
 
             // FIXME this part is still required for compound to correctly display info on the device
             const addrs =
@@ -72,13 +78,13 @@ export const signOperation = ({
             for (const addr of addrs) {
               const tokenInfo = byContractAddress(addr);
               if (tokenInfo) {
-                await eth.provideERC20TokenInformation(tokenInfo);
+                await lat.provideERC20TokenInformation(tokenInfo);
                 if (cancelled) return;
               }
             }
 
             o.next({ type: "device-signature-requested" });
-            const result = await eth.signTransaction(
+            const result = await lat.signTransaction(
               freshAddressPath,
               tx.serialize().toString("hex")
             );
@@ -110,9 +116,6 @@ export const signOperation = ({
             const txHash = ""; // resolved at broadcast time
             const senders = [freshAddress];
             let recipients = [to];
-            // if (transaction.isBech32) {
-            //   recipients = [toBech32Address(recipients[0])];
-            // }
             const fee = gasPrice.times(gasLimit);
             const transactionSequenceNumber = nonce;
             const accountId = account.id;

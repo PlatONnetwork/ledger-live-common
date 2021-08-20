@@ -2,13 +2,12 @@
 import invariant from "invariant";
 import { BigNumber } from "bignumber.js";
 import { log } from "@ledgerhq/logs";
+import { Transaction as EthereumTx } from "ethereumjs-tx";
 import type {
   Transaction,
   TransactionRaw,
-  EthereumGasLimitRequest,
 } from "./types";
 import Common from "ethereumjs-common";
-import { Transaction as EthereumTx } from "ethereumjs-tx";
 import eip55 from "eip55";
 import {
   InvalidAddress,
@@ -209,43 +208,14 @@ export function buildEthereumTx(
   return { tx, fillTransactionDataResult };
 }
 
-export function inferEthereumGasLimitRequest(
-  account: Account,
-  transaction: Transaction
-): EthereumGasLimitRequest {
-  const r: EthereumGasLimitRequest = {
-    from: account.freshAddress,
-    amplifier: "1",
-  };
-  if (transaction.gasPrice) {
-    r.gasPrice = "0x" + transaction.gasPrice.toString();
-  }
-  try {
-    const { data, to, value } = buildEthereumTx(account, transaction, 1).tx;
-    if (value) {
-      r.value = "0x" + (value.toString("hex") || "0");
-    }
-    if (to) {
-      r.to = "0x" + to.toString("hex");
-    }
-    if (data) {
-      r.data = "0x" + data.toString("hex");
-    }
-  } catch (e) {
-    log("warn", "couldn't serializeTransactionData: " + e);
-  }
-
-  return r;
-}
-
 export const estimateGasLimit: (
   account: Account,
-  request: EthereumGasLimitRequest
+  transaction: Transaction
 ) => Promise<BigNumber> = makeLRUCache(
-  (account: Account, request: EthereumGasLimitRequest) => {
+  (account: Account, transaction: Transaction) => {
     const api = apiForCurrency(account.currency);
     return api
-      .getDryRunGasLimit(request)
+      .getDryRunGasLimit(account, transaction)
       .then((value) =>
         value.eq(21000) // regular ETH send should not be amplified
           ? value
@@ -253,20 +223,17 @@ export const estimateGasLimit: (
       )
       .catch(() => api.roughlyEstimateGasLimit());
   },
-  (a, r) =>
+  (a, t) =>
     a.id +
     "|" +
-    String(r.from) +
+    String(a.freshAddress) +
     "+" +
-    String(r.to) +
+    String(t.recipient) +
     "+" +
-    String(r.value) +
+    String(t.data) +
     "+" +
-    String(r.data) +
-    "+" +
-    String(r.gasPrice) +
-    "+" +
-    String(r.amplifier)
+    String(t.gasPrice) +
+    "+1"
 );
 
 export default {

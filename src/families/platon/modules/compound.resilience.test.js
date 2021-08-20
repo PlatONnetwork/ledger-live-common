@@ -5,13 +5,13 @@ import { fromAccountRaw, toAccountRaw } from "../../../account";
 import type { Account } from "../../../types";
 import { getAccountBridge } from "../../../bridge";
 import { makeBridgeCacheSystem } from "../../../bridge/cache";
-import { ethereum1 } from "../test-dataset";
+import dataset from "../test-dataset";
 import { setEnv } from "../../../env";
 
 setEnv("COMPOUND_API", "https://status.ledger.com"); // hack to hit an endpoint that actually is going to 404
 
 test("if API is down, an account still sync fine", async () => {
-  const account = fromAccountRaw(ethereum1);
+  const account = fromAccountRaw(dataset.raw);
   let localCache = {};
   const cache = makeBridgeCacheSystem({
     saveData(c, d) {

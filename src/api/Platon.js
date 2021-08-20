@@ -4,8 +4,8 @@ import invariant from "invariant";
 import { BigNumber } from "bignumber.js";
 import { LedgerAPINotAvailable } from "@ledgerhq/errors";
 import JSONBigNumber from "../JSONBigNumber";
-import type { CryptoCurrency } from "../types";
-import type { EthereumGasLimitRequest } from "../families/ethereum/types";
+import type { CryptoCurrency, Account } from "../types";
+import type { Transaction } from "../families/platon/types";
 import network from "../network";
 // import { blockchainBaseURL } from "./Ledger";
 import { FeeEstimationFailed } from "../errors";
@@ -55,7 +55,8 @@ export type API = {
     contract: string
   ) => Promise<Array<{ sender: string, value: string }>>,
   getDryRunGasLimit: (
-    request: EthereumGasLimitRequest
+    account: Account,
+    transaction: Transaction
   ) => Promise<BigNumber>,
   getGasTrackerBarometer: () => Promise<BigNumber>,
 };
@@ -189,7 +190,7 @@ export const apiForCurrency = (currency: CryptoCurrency): API => {
       return BigNumber(data.result);
     },
 
-    async getDryRunGasLimit(tx) {
+    async getDryRunGasLimit(a, tx) {
       console.log('_-_-_-_=> getDryRunGasLimit');
       const { data } = await network({
         method: "POST",
@@ -198,8 +199,8 @@ export const apiForCurrency = (currency: CryptoCurrency): API => {
           "jsonrpc":"2.0",
           "method":"platon_estimateGas",
           "params":[{
-            "from": tx.from,
-            "to": tx.to,
+            "from": a.freshAddress,
+            "to": tx.recipient,
             "data": tx.data
           }],
           "id":1

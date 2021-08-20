@@ -19,11 +19,7 @@ import { getCryptoCurrencyById } from "../../../currencies";
 import { apiForCurrency } from "../../../api/Platon";
 import { getEstimatedFees } from "../../../api/Fees";
 import type { Transaction, NetworkInfo } from "../types";
-import {
-  getGasLimit,
-  inferEthereumGasLimitRequest,
-  estimateGasLimit,
-} from "../transaction";
+import { getGasLimit, estimateGasLimit } from "../transaction";
 import { getAccountShape } from "../synchronisation";
 import { preload, hydrate } from "../modules";
 import { signOperation } from "../signOperation";
@@ -62,7 +58,7 @@ const createTransaction = () => ({
   networkInfo: null,
   feeCustomUnit: getCryptoCurrencyById("platon").units[0],
   useAllAmount: false,
-  isBech32: false,
+  ethAdr: "",
 });
 
 const updateTransaction = (t, patch) => {
@@ -76,7 +72,6 @@ const updateTransaction = (t, patch) => {
 
 const getTransactionStatus = (a, t) => {
   console.log("_-_-_-_=> getTransactionStatus", t);
-  t.isBech32 && (t.recipient = decodeBech32Address(t.recipient));
   const gasLimit = getGasLimit(t);
   const estimatedFees = (t.gasPrice || BigNumber(0)).times(gasLimit);
 
@@ -92,6 +87,7 @@ const getTransactionStatus = (a, t) => {
 
   const m = modes[t.mode];
   invariant(m, "missing module for mode=" + t.mode);
+  t.ethAdr && (t.recipient = t.ethAdr);
   m.fillTransactionStatus(a, t, result);
 
   // generic gas error and warnings
@@ -113,7 +109,6 @@ const getTransactionStatus = (a, t) => {
 };
 
 const getNetworkInfoByGasTrackerBarometer = async (c) => {
-  console.log("_-_-_-_=> getNetworkInfoByGasTrackerBarometer");
   const api = apiForCurrency(c);
   const gasPrice = await api.getGasTrackerBarometer();
   return { family: "platon", gasPrice };
@@ -126,10 +121,6 @@ const getNetworkInfo = (c) =>
 
 const prepareTransaction = async (a, t: Transaction): Promise<Transaction> => {
   console.log("_-_-_-_=> prepareTransaction", t);
-  if (isBech32Address(t.recipient)) {
-    t.isBech32 = true;
-    t.recipient = decodeBech32Address(t.recipient)
-  }
   const networkInfo = t.networkInfo || (await getNetworkInfo(a.currency));
   const gasPrice = networkInfo.gasPrice;
   if (t.gasPrice !== gasPrice || t.networkInfo !== networkInfo) {
@@ -137,10 +128,15 @@ const prepareTransaction = async (a, t: Transaction): Promise<Transaction> => {
   }
 
   let estimatedGasLimit;
-  const request = inferEthereumGasLimitRequest(a, t);
-  if (request.to) {
-    request.to = toBech32Address(request.to);
-    estimatedGasLimit = await estimateGasLimit(a, request);
+  if (isBech32Address(t.recipient)) {
+    t.ethAdr = decodeBech32Address(t.recipient);
+    estimatedGasLimit = await estimateGasLimit(a, t);
+  } else if (isAddress(t.recipient)) {
+    t.ethAdr = '';
+    estimatedGasLimit = await estimateGasLimit(a, {
+      ...t,
+      recipient: toBech32Address("lat", t.recipient),
+    });
   }
 
   if (

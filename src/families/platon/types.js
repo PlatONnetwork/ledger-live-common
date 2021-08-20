@@ -22,16 +22,6 @@ import type { TransactionMode, ModeModule } from "./modules";
 import type { CryptoCurrency } from "../../types";
 import type { DerivationMode } from "../../derivation";
 
-export type EthereumGasLimitRequest = {
-  from?: string,
-  to?: string,
-  value?: string,
-  data?: string,
-  gas?: string,
-  gasPrice?: string,
-  amplifier: string,
-};
-
 export type NetworkInfo = {|
   family: "platon",
   gasPrice: BigNumber,
@@ -56,7 +46,7 @@ export type Transaction = {|
   feeCustomUnit: ?Unit,
   networkInfo: ?NetworkInfo,
   allowZeroAmount?: boolean,
-  isBech32?: boolean,
+  ethAdr?: string,
 |};
 
 export type TransactionRaw = {|

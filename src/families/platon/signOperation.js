@@ -8,7 +8,6 @@ import { BigNumber } from "bignumber.js";
 import { log } from "@ledgerhq/logs";
 import { FeeNotLoaded } from "@ledgerhq/errors";
 import Lat from "@ledgerhq/hw-app-lat";
-import { byContractAddress } from "@ledgerhq/hw-app-eth/erc20";
 import type { Transaction } from "./types";
 import type { Operation, Account, SignOperationEvent } from "../../types";
 import { getGasLimit, buildEthereumTx } from "./transaction";
@@ -37,7 +36,6 @@ export const signOperation = ({
           let cancelled;
 
           async function main() {
-            console.log("_-_-_-_=> signOperation", transaction);
             // First, we need to create a partial tx and send to the device
             const { freshAddressPath, freshAddress } = account;
             const { gasPrice } = transaction;
@@ -69,19 +67,6 @@ export const signOperation = ({
             const value = BigNumber("0x" + (tx.value.toString("hex") || "0"));
 
             const lat = new Lat(transport);
-
-            // FIXME this part is still required for compound to correctly display info on the device
-            const addrs =
-              (fillTransactionDataResult &&
-                fillTransactionDataResult.erc20contracts) ||
-              [];
-            for (const addr of addrs) {
-              const tokenInfo = byContractAddress(addr);
-              if (tokenInfo) {
-                await lat.provideERC20TokenInformation(tokenInfo);
-                if (cancelled) return;
-              }
-            }
 
             o.next({ type: "device-signature-requested" });
             const result = await lat.signTransaction(

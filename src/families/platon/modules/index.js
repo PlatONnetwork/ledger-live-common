@@ -12,14 +12,10 @@ import type { Transaction } from "../types";
 import type { DeviceTransactionField } from "../../../transaction";
 
 // maintained union of all the modules
-import * as compound from "./compound";
-import * as erc20 from "./erc20";
 import * as send from "./send";
-import type { Modes as CompoundModes } from "./compound";
-import type { Modes as ERC20Modes } from "./erc20";
 import type { Modes as SendModes } from "./send";
-const modules = { erc20, compound, send };
-export type TransactionMode = CompoundModes | ERC20Modes | SendModes;
+const modules = { send };
+export type TransactionMode = SendModes;
 
 /**
  * A ModeModule enable a new transaction mode in Ethereum family

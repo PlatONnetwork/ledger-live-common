@@ -3,7 +3,6 @@ import algorand from "../families/algorand/deviceTransactionConfig.js";
 import bitcoin from "../families/bitcoin/deviceTransactionConfig.js";
 import cosmos from "../families/cosmos/deviceTransactionConfig.js";
 import ethereum from "../families/ethereum/deviceTransactionConfig.js";
-import platon from "../families/platon/deviceTransactionConfig.js";
 import polkadot from "../families/polkadot/deviceTransactionConfig.js";
 import ripple from "../families/ripple/deviceTransactionConfig.js";
 import stellar from "../families/stellar/deviceTransactionConfig.js";
@@ -15,7 +14,6 @@ export default {
   bitcoin,
   cosmos,
   ethereum,
-  platon,
   polkadot,
   ripple,
   stellar,

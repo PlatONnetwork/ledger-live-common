@@ -39,6 +39,7 @@ export type ERC20BalanceOutput = Array<{
 export type API = {
   getTransactions: (
     address: string,
+    current?: number,
     batch_size?: number
   ) => Promise<{
     truncated: boolean,
@@ -65,15 +66,14 @@ export const apiForCurrency = (currency: CryptoCurrency): API => {
   const baseURL = 'http://192.168.120.146:6789';
 
   return {
-    async getTransactions(address, batch_size) {
-      console.log('_-_-_-_=> getTransactions');
+    async getTransactions(address, pageNo, pageSize) {
       let { data } = await network({
         method: "POST",
         url: 'http://192.168.9.190:40000/browser-server/transaction/transactionListByAddress',
-        data: {pageNo: 1, pageSize: batch_size, address},
+        data: {pageNo, pageSize, address},
       });
       data = {
-        truncated: data.data.length >= batch_size,
+        truncated: data.data.length >= pageSize,
         txs: data.data || [],
       };
       return data;
@@ -136,46 +136,7 @@ export const apiForCurrency = (currency: CryptoCurrency): API => {
       return BigNumber(data.result);
     },
 
-    async getERC20Balances(input) {
-      const { data } = await network({
-        method: "POST",
-        url: `${baseURL}/erc20/balances`,
-        transformResponse: JSONBigNumber.parse,
-        data: input,
-      });
-      return data;
-    },
-
-    async getERC20ApprovalsPerContract(owner, contract) {
-      try {
-        const { data } = await network({
-          method: "GET",
-          url: URL.format({
-            pathname: `${baseURL}/erc20/approvals`,
-            query: {
-              owner,
-              contract,
-            },
-          }),
-        });
-        return data
-          .map((m: mixed) => {
-            if (!m || typeof m !== "object") return;
-            const { sender, value } = m;
-            if (typeof sender !== "string" || typeof value !== "string") return;
-            return { sender, value };
-          })
-          .filter(Boolean);
-      } catch (e) {
-        if (e.status === 404) {
-          return [];
-        }
-        throw e;
-      }
-    },
-
     async roughlyEstimateGasLimit() {
-      console.log('_-_-_-_=> roughlyEstimateGasLimit');
       const { data } = await network({
         method: "POST",
         url: baseURL,
@@ -191,7 +152,6 @@ export const apiForCurrency = (currency: CryptoCurrency): API => {
     },
 
     async getDryRunGasLimit(a, tx) {
-      console.log('_-_-_-_=> getDryRunGasLimit');
       const { data } = await network({
         method: "POST",
         url: baseURL,

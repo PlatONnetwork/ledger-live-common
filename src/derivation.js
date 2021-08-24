@@ -213,7 +213,7 @@ const modes = Object.freeze({
     overridesDerivation: "44'/354'/<account>'/0'/<address>'",
   },
   platonbip44h: {
-    overridesDerivation: "44'/486'/<account>'/0'/<address>'",
+    overridesDerivation: "44'/486'/<account>'/0/<address>",
   },
 });
 

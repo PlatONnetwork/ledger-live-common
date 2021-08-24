@@ -62,7 +62,6 @@ const createTransaction = () => ({
 });
 
 const updateTransaction = (t, patch) => {
-  console.log("_-_-_-_=> updateTransaction", t);
 
   if ("recipient" in patch && patch.recipient !== t.recipient) {
     return { ...t, ...patch, userGasLimit: null, estimatedGasLimit: null };
@@ -71,7 +70,6 @@ const updateTransaction = (t, patch) => {
 };
 
 const getTransactionStatus = (a, t) => {
-  console.log("_-_-_-_=> getTransactionStatus", t);
   const gasLimit = getGasLimit(t);
   const estimatedFees = (t.gasPrice || BigNumber(0)).times(gasLimit);
 
@@ -120,11 +118,10 @@ const getNetworkInfo = (c) =>
   });
 
 const prepareTransaction = async (a, t: Transaction): Promise<Transaction> => {
-  console.log("_-_-_-_=> prepareTransaction", t);
   const networkInfo = t.networkInfo || (await getNetworkInfo(a.currency));
   const gasPrice = networkInfo.gasPrice;
-  if (t.gasPrice !== gasPrice || t.networkInfo !== networkInfo) {
-    t = { ...t, networkInfo, gasPrice };
+  if (t.networkInfo !== networkInfo) {
+    t = { ...t, networkInfo, gasPrice: t.gasPrice || gasPrice };
   }
 
   let estimatedGasLimit;
@@ -154,7 +151,6 @@ const estimateMaxSpendable = async ({
   parentAccount,
   transaction,
 }) => {
-  console.log("_-_-_-_=> estimateMaxSpendable");
   const mainAccount = getMainAccount(account, parentAccount);
   const t = await prepareTransaction(mainAccount, {
     ...createTransaction(),

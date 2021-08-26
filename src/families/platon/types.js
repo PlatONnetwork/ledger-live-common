@@ -19,17 +19,18 @@ import type {
   Spec,
 } from "../../libcore/types";
 import type { TransactionMode, ModeModule } from "./modules";
+import type { Range, RangeRaw } from "../../range";
 import type { CryptoCurrency } from "../../types";
 import type { DerivationMode } from "../../derivation";
 
 export type NetworkInfo = {|
   family: "platon",
-  gasPrice: BigNumber,
+  gasPrice: Range,
 |};
 
 export type NetworkInfoRaw = {|
   family: "platon",
-  gasPrice: string,
+  gasPrice: RangeRaw,
 |};
 
 export type { TransactionMode, ModeModule };

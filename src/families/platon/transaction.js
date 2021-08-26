@@ -3,10 +3,7 @@ import invariant from "invariant";
 import { BigNumber } from "bignumber.js";
 import { log } from "@ledgerhq/logs";
 import { Transaction as EthereumTx } from "ethereumjs-tx";
-import type {
-  Transaction,
-  TransactionRaw,
-} from "./types";
+import type { Transaction, TransactionRaw } from "./types";
 import Common from "ethereumjs-common";
 import eip55 from "eip55";
 import {
@@ -25,13 +22,11 @@ import { apiForCurrency } from "../../api/Platon";
 import { makeLRUCache } from "../../cache";
 import { getEnv } from "../../env";
 import { modes } from "./modules";
-import {
-  isBech32Address,
-  isAddress,
-} from "./utils.min.js";
+import { fromRangeRaw, toRangeRaw } from "../../range";
+import { isBech32Address, isAddress } from "./utils.min.js";
 
 export function isRecipientValid(currency: CryptoCurrency, recipient: string) {
-  return isBech32Address(recipient) || isAddress(recipient)
+  return isBech32Address(recipient) || isAddress(recipient);
 }
 
 export function validateRecipient(
@@ -67,8 +62,10 @@ ${t.mode.toUpperCase()} ${
         })
   }
 TO ${t.recipient}
-with gasPrice=${formatCurrencyUnit(getAccountUnit(account),
-    t.gasPrice || BigNumber(0), {
+with gasPrice=${formatCurrencyUnit(
+    getAccountUnit(account),
+    t.gasPrice || BigNumber(0),
+    {
       showCode: true,
       disableRounding: true,
     }
@@ -98,9 +95,10 @@ export const fromTransactionRaw = (tr: TransactionRaw): Transaction => {
     feeCustomUnit: tr.feeCustomUnit, // FIXME this is not good.. we're dereferencing here. we should instead store an index (to lookup in currency.units on UI)
     networkInfo: networkInfo && {
       family: networkInfo.family,
-      gasPrice: BigNumber(networkInfo.gasPrice),
+      gasPrice: fromRangeRaw(networkInfo.gasPrice),
     },
     allowZeroAmount: tr.allowZeroAmount,
+    feesStrategy: tr.feesStrategy,
   };
 };
 
@@ -121,9 +119,10 @@ export const toTransactionRaw = (t: Transaction): TransactionRaw => {
     feeCustomUnit: t.feeCustomUnit, // FIXME drop?
     networkInfo: networkInfo && {
       family: networkInfo.family,
-      gasPrice: networkInfo.gasPrice.toString(),
+      gasPrice: toRangeRaw(networkInfo.gasPrice),
     },
     allowZeroAmount: t.allowZeroAmount,
+    feesStrategy: t.feesStrategy,
   };
 };
 

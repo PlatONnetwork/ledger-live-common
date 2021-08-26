@@ -25,6 +25,7 @@ import { preload, hydrate } from "../modules";
 import { signOperation } from "../signOperation";
 import { modes } from "../modules";
 import postSyncPatch from "../postSyncPatch";
+import { inferDynamicRange } from "../../../range";
 import {
   toBech32Address,
   decodeBech32Address,
@@ -58,11 +59,11 @@ const createTransaction = () => ({
   networkInfo: null,
   feeCustomUnit: getCryptoCurrencyById("platon").units[0],
   useAllAmount: false,
+  feesStrategy: "medium",
   ethAdr: "",
 });
 
 const updateTransaction = (t, patch) => {
-
   if ("recipient" in patch && patch.recipient !== t.recipient) {
     return { ...t, ...patch, userGasLimit: null, estimatedGasLimit: null };
   }
@@ -108,7 +109,11 @@ const getTransactionStatus = (a, t) => {
 
 const getNetworkInfoByGasTrackerBarometer = async (c) => {
   const api = apiForCurrency(c);
-  const gasPrice = await api.getGasTrackerBarometer();
+  const { low, medium, high } = await api.getGasTrackerBarometer();
+  const minValue = low;
+  const maxValue = high.lte(low) ? low.times(2) : high;
+  const initial = medium;
+  const gasPrice = inferDynamicRange(initial, { minValue, maxValue });
   return { family: "platon", gasPrice };
 };
 
@@ -117,9 +122,19 @@ const getNetworkInfo = (c) =>
     throw e;
   });
 
+const inferGasPrice = (t: Transaction, networkInfo: NetworkInfo) => {
+  return t.feesStrategy === "slow"
+    ? networkInfo.gasPrice.min
+    : t.feesStrategy === "medium"
+    ? networkInfo.gasPrice.initial
+    : t.feesStrategy === "fast"
+    ? networkInfo.gasPrice.max
+    : t.gasPrice || networkInfo.gasPrice.initial;
+};
+
 const prepareTransaction = async (a, t: Transaction): Promise<Transaction> => {
   const networkInfo = t.networkInfo || (await getNetworkInfo(a.currency));
-  const gasPrice = networkInfo.gasPrice;
+  const gasPrice = inferGasPrice(t, networkInfo);
   if (t.networkInfo !== networkInfo) {
     t = { ...t, networkInfo, gasPrice: t.gasPrice || gasPrice };
   }
@@ -129,7 +144,7 @@ const prepareTransaction = async (a, t: Transaction): Promise<Transaction> => {
     t.ethAdr = decodeBech32Address(t.recipient);
     estimatedGasLimit = await estimateGasLimit(a, t);
   } else if (isAddress(t.recipient)) {
-    t.ethAdr = '';
+    t.ethAdr = "";
     estimatedGasLimit = await estimateGasLimit(a, {
       ...t,
       recipient: toBech32Address("lat", t.recipient),

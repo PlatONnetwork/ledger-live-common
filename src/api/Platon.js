@@ -63,14 +63,15 @@ export type API = {
 };
 
 export const apiForCurrency = (currency: CryptoCurrency): API => {
-  const baseURL = 'http://192.168.120.146:6789';
+  const baseURL = "http://192.168.9.221:6789";
+  const scanURL = "https://scan.platon.network";
 
   return {
     async getTransactions(address, pageNo, pageSize) {
       let { data } = await network({
         method: "POST",
-        url: 'http://192.168.9.190:40000/browser-server/transaction/transactionListByAddress',
-        data: {pageNo, pageSize, address},
+        url: scanURL + "/browser-server/transaction/transactionListByAddress",
+        data: { pageNo, pageSize, address },
       });
       data = {
         truncated: data.data.length >= pageSize,
@@ -84,10 +85,10 @@ export const apiForCurrency = (currency: CryptoCurrency): API => {
         method: "POST",
         url: baseURL,
         data: {
-          "jsonrpc":"2.0",
-          "method":"platon_blockNumber",
-          "params":[],
-          "id":1
+          jsonrpc: "2.0",
+          method: "platon_blockNumber",
+          params: [],
+          id: 1,
         },
       });
       return data.result;
@@ -98,10 +99,10 @@ export const apiForCurrency = (currency: CryptoCurrency): API => {
         method: "POST",
         url: baseURL,
         data: {
-          "jsonrpc":"2.0",
-          "method":"platon_getTransactionCount",
-          "params":[address, 'latest'],
-          "id":1
+          jsonrpc: "2.0",
+          method: "platon_getTransactionCount",
+          params: [address, "latest"],
+          id: 1,
         },
       });
       return data.result;
@@ -112,10 +113,10 @@ export const apiForCurrency = (currency: CryptoCurrency): API => {
         method: "POST",
         url: baseURL,
         data: {
-          "jsonrpc":"2.0",
-          "method":"platon_sendRawTransaction",
-          "params":[tx],
-          "id":1
+          jsonrpc: "2.0",
+          method: "platon_sendRawTransaction",
+          params: [tx],
+          id: 1,
         },
       });
       return data.result;
@@ -126,10 +127,10 @@ export const apiForCurrency = (currency: CryptoCurrency): API => {
         method: "POST",
         url: baseURL,
         data: {
-          "jsonrpc":"2.0",
-          "method":"platon_getBalance",
-          "params":[address, "latest"],
-          "id":1
+          jsonrpc: "2.0",
+          method: "platon_getBalance",
+          params: [address, "latest"],
+          id: 1,
         },
         transformResponse: JSONBigNumber.parse,
       });
@@ -141,10 +142,10 @@ export const apiForCurrency = (currency: CryptoCurrency): API => {
         method: "POST",
         url: baseURL,
         data: {
-          "jsonrpc":"2.0",
-          "method":"platon_estimateGas",
-          "params":[{}],
-          "id":1
+          jsonrpc: "2.0",
+          method: "platon_estimateGas",
+          params: [{}],
+          id: 1,
         },
         transformResponse: JSONBigNumber.parse,
       });
@@ -156,14 +157,16 @@ export const apiForCurrency = (currency: CryptoCurrency): API => {
         method: "POST",
         url: baseURL,
         data: {
-          "jsonrpc":"2.0",
-          "method":"platon_estimateGas",
-          "params":[{
-            "from": a.freshAddress,
-            "to": tx.recipient,
-            "data": tx.data
-          }],
-          "id":1
+          jsonrpc: "2.0",
+          method: "platon_estimateGas",
+          params: [
+            {
+              from: a.freshAddress,
+              to: tx.recipient,
+              data: tx.data,
+            },
+          ],
+          id: 1,
         },
         transformResponse: JSONBigNumber.parse,
       });
@@ -177,17 +180,22 @@ export const apiForCurrency = (currency: CryptoCurrency): API => {
 
     getGasTrackerBarometer: makeLRUCache(
       async () => {
-        const { data } = await network({
-          method: "POST",
-          url: baseURL,
-          data: {
-            "jsonrpc":"2.0",
-            "method":"platon_gasPrice",
-            "params":[],
-            "id":1
-          }
-        });
-        return BigNumber(data.result);
+        // const { data } = await network({
+        //   method: "POST",
+        //   url: baseURL,
+        //   data: {
+        //     "jsonrpc":"2.0",
+        //     "method":"platon_gasPrice",
+        //     "params":[],
+        //     "id":1
+        //   }
+        // });
+        // return BigNumber(data.result);
+        return {
+          low: BigNumber("1000000000"),
+          medium: BigNumber("10000000000"),
+          high: BigNumber("30000000000"),
+        };
       },
       () => "",
       { maxAge: 30 * 1000 }

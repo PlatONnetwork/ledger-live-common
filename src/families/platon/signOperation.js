@@ -52,7 +52,9 @@ export const signOperation = ({
               throw new FeeNotLoaded();
             }
 
+            let bech32Adr = "";
             if (isBech32Address(transaction.recipient)) {
+              bech32Adr = transaction.recipient;
               transaction.recipient = decodeBech32Address(
                 transaction.recipient
               );
@@ -100,7 +102,7 @@ export const signOperation = ({
             // build optimistic operation
             const txHash = ""; // resolved at broadcast time
             const senders = [freshAddress];
-            let recipients = [to];
+            let recipients = [bech32Adr || to];
             const fee = gasPrice.times(gasLimit);
             const transactionSequenceNumber = nonce;
             const accountId = account.id;

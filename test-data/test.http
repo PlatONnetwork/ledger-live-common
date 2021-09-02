@@ -1,4 +1,6 @@
-@url = http://192.168.120.146:6789
+@url = http://192.168.9.221:6789
+# @url = http://192.168.120.146:6789
+
 @from = lat1224ealrarc9ue8khc4n4rmc7fkrdqvhl2r3xpk
 # @to = lat1cy2uat0eukfrxv897s5s8lnljfka5ewjtnrfhx
 @to = 0xc115ceadf9e5923330e5f42903fe7f926dda65d2
@@ -32,7 +34,7 @@ content-type: application/json
 
 {
   "jsonrpc":"2.0",
-  "method":"platon_getTransactionCount",
+  "method":"platon_getBalance",
   "params":["{{from}}", "latest"],
   "id":1
 }
